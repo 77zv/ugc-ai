@@ -243,10 +243,47 @@ if __name__ == "__main__":
             print(f"\n⚠️  {raw_scripts_dir}/ folder not found")
             print("💡 Tip: Process a video first (option 1 or 2) to create the folder")
     
+    elif choice == "4":
+        # === Option 4: Analyze Raw Script Structure Only ===
+        raw_scripts_dir = "raw_scripts"
+        
+        if os.path.exists(raw_scripts_dir):
+            raw_scripts = glob.glob(os.path.join(raw_scripts_dir, "*.txt"))
+            
+            if raw_scripts:
+                print(f"\n📝 Found {len(raw_scripts)} raw script(s):")
+                print("-" * 60)
+                for i, script_path in enumerate(raw_scripts, 1):
+                    filename = os.path.basename(script_path)
+                    print(f"{i}. {filename}")
+                
+                print("-" * 60)
+                selection = input(f"\nSelect raw script to analyze (1-{len(raw_scripts)}): ").strip()
+                
+                if selection.isdigit() and 1 <= int(selection) <= len(raw_scripts):
+                    selected_script = raw_scripts[int(selection) - 1]
+                    
+                    print(f"\n✅ Selected: {os.path.basename(selected_script)}")
+                    print("\n" + "="*60)
+                    print("Analyzing script structure...")
+                    print("="*60)
+                    
+                    # Analyze the script (no repurposing)
+                    analyze_script_only(selected_script)
+                else:
+                    print("Invalid selection")
+            else:
+                print(f"\n⚠️  No raw scripts found in {raw_scripts_dir}/ folder")
+                print("💡 Tip: Process a video first (option 1 or 2) to create raw scripts")
+        else:
+            print(f"\n⚠️  {raw_scripts_dir}/ folder not found")
+            print("💡 Tip: Process a video first (option 1 or 2) to create the folder")
+    
     else:
-        print("Invalid choice. Please select 1, 2, or 3.")
+        print("Invalid choice. Please select 1, 2, 3, or 4.")
 
-    # Optional: quick regenerate loop
-    while input("\nRegenerate? (y/n): ").strip().lower() == "y":
-        extra_instructions = get_extra_instructions()
-        repurpose_script(extra_instructions=extra_instructions)
+    # Optional: quick regenerate loop (only for repurposing options)
+    if choice in ["1", "2", "3"]:
+        while input("\nRegenerate? (y/n): ").strip().lower() == "y":
+            extra_instructions = get_extra_instructions()
+            repurpose_script(extra_instructions=extra_instructions)
