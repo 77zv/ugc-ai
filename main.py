@@ -4,7 +4,7 @@ import shutil
 from dotenv import load_dotenv
 
 # Import script processing functions
-from script_repurposer import build_personality_db, repurpose_script, DB_PATH
+from script_repurposer import build_personality_db, repurpose_script, analyze_script_only, DB_PATH
 from video_processor import process_video, scenes_to_script, transcribe_only
 
 # === Load API Key ===
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     print("\nOptions:")
     print("1. Process video (full analysis: scenes + screenshots + transcription)")
     print("2. Quick transcribe video (transcription only, no scenes/screenshots)")
-    print("3. Process raw script from raw_scripts/ folder")
-    print("4. Personalize existing script.txt")
+    print("3. Personalize raw script (select from raw_scripts/ folder)")
+    print("4. Analyze raw script structure (no repurposing, saves to analyzed_scripts/)")
     
     choice = input("\nEnter choice (1-4): ").strip()
     
@@ -202,7 +202,7 @@ if __name__ == "__main__":
             print(f"Error: Video file not found: {video_path}")
     
     elif choice == "3":
-        # === Option 3: Process Raw Script ===
+        # === Option 3: Personalize Raw Script (Select from raw_scripts/) ===
         raw_scripts_dir = "raw_scripts"
         
         if os.path.exists(raw_scripts_dir):
@@ -238,15 +238,13 @@ if __name__ == "__main__":
                     print("Invalid selection")
             else:
                 print(f"\n⚠️  No raw scripts found in {raw_scripts_dir}/ folder")
-                print("💡 Tip: Process a video first (option 1) to create raw scripts")
+                print("💡 Tip: Process a video first (option 1 or 2) to create raw scripts")
         else:
             print(f"\n⚠️  {raw_scripts_dir}/ folder not found")
-            print("💡 Tip: Process a video first (option 1) to create the folder")
+            print("💡 Tip: Process a video first (option 1 or 2) to create the folder")
     
     else:
-        # === Option 4: Direct Script Personalization ===
-        extra_instructions = get_extra_instructions()
-        repurpose_script(extra_instructions=extra_instructions)
+        print("Invalid choice. Please select 1, 2, or 3.")
 
     # Optional: quick regenerate loop
     while input("\nRegenerate? (y/n): ").strip().lower() == "y":

@@ -389,3 +389,88 @@ def repurpose_script(input_file: str = "script.txt", output_file: str = "output.
     print(full_output)
     print(f"\n{'='*60}")
 
+
+def analyze_script_only(input_file: str, output_dir: str = "analyzed_scripts") -> str:
+    """
+    Analyze a script structure without repurposing it.
+    Saves both JSON and human-readable formats.
+    
+    Args:
+        input_file: Path to input script file
+        output_dir: Directory to save analyzed scripts
+        
+    Returns:
+        Path to the saved analyzed script
+    """
+    import os
+    from datetime import datetime
+    
+    print(f"\n📖 Loading {input_file}...")
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"{input_file} not found.")
+
+    with open(input_file, "r", encoding="utf-8") as f:
+        script = f.read().strip()
+
+    if not script:
+        print(f"{input_file} is empty!")
+        return ""
+
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Generate output filename based on input filename
+    base_name = os.path.splitext(os.path.basename(input_file))[0]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_name = f"{base_name}_analyzed_{timestamp}"
+    
+    # Analyze the script structure
+    sections = structure_script(script)
+    
+    # Save JSON format
+    json_output_path = os.path.join(output_dir, f"{output_name}.json")
+    analysis_data = {
+        "original_file": input_file,
+        "analyzed_at": datetime.now().isoformat(),
+        "total_sections": len(sections),
+        "sections": sections
+    }
+    
+    with open(json_output_path, "w", encoding="utf-8") as f:
+        json.dump(analysis_data, f, indent=2, ensure_ascii=False)
+    
+    # Save human-readable format
+    txt_output_path = os.path.join(output_dir, f"{output_name}.txt")
+    readable_lines = []
+    readable_lines.append("=" * 60)
+    readable_lines.append("SCRIPT STRUCTURE ANALYSIS")
+    readable_lines.append("=" * 60)
+    readable_lines.append(f"Original File: {input_file}")
+    readable_lines.append(f"Analyzed At: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    readable_lines.append(f"Total Sections: {len(sections)}")
+    readable_lines.append("")
+    
+    for i, section in enumerate(sections, 1):
+        section_type = section.get("type", "unknown")
+        description = section.get("description", "")
+        content = section.get("content", "")
+        
+        readable_lines.append("-" * 60)
+        readable_lines.append(f"SECTION {i}: [{section_type.upper()}]")
+        if description:
+            readable_lines.append(f"Description: {description}")
+        readable_lines.append("-" * 60)
+        readable_lines.append(content)
+        readable_lines.append("")
+    
+    readable_lines.append("=" * 60)
+    
+    with open(txt_output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(readable_lines))
+    
+    print(f"\n✅ Analysis complete!")
+    print(f"   📄 JSON format: {json_output_path}")
+    print(f"   📄 Readable format: {txt_output_path}")
+    
+    return txt_output_path
+
