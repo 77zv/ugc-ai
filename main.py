@@ -231,10 +231,11 @@ if __name__ == "__main__":
     print("UGC AI SCRIPT PERSONALIZER")
     print("="*60)
     print("\nOptions:")
-    print("1. Process video")
-    print("2. Personalize existing script.txt")
+    print("1. Process video (extract & personalize)")
+    print("2. Process raw script from raw_scripts/ folder")
+    print("3. Personalize existing script.txt")
     
-    choice = input("\nEnter choice (1 or 2): ").strip()
+    choice = input("\nEnter choice (1-3): ").strip()
     
     if choice == "1":
         # Check for videos folder
@@ -275,10 +276,22 @@ if __name__ == "__main__":
             # Import video processor
             from video_processor import process_video, scenes_to_script
             
+            # Create raw_scripts folder if it doesn't exist
+            raw_scripts_dir = "raw_scripts"
+            os.makedirs(raw_scripts_dir, exist_ok=True)
+            
             # Process video
             scenes = process_video(video_path)
             
-            # Convert to script format
+            # Generate a filename based on the video name
+            video_name = os.path.splitext(os.path.basename(video_path))[0]
+            raw_script_path = os.path.join(raw_scripts_dir, f"{video_name}_raw.txt")
+            
+            # Save raw extracted script to raw_scripts folder
+            scenes_to_script(scenes, raw_script_path)
+            print(f"\n💾 Raw script saved to: {raw_script_path}")
+            
+            # Also save to script.txt for processing
             scenes_to_script(scenes, "script.txt")
             
             print("\n" + "="*60)
@@ -289,8 +302,51 @@ if __name__ == "__main__":
             repurpose()
         else:
             print(f"Error: Video file not found: {video_path}")
+    
+    elif choice == "2":
+        # Process existing raw script
+        raw_scripts_dir = "raw_scripts"
+        
+        if os.path.exists(raw_scripts_dir):
+            # Get all txt files in raw_scripts folder
+            import glob
+            raw_scripts = glob.glob(os.path.join(raw_scripts_dir, "*.txt"))
+            
+            if raw_scripts:
+                print(f"\n📝 Found {len(raw_scripts)} raw script(s):")
+                print("-" * 60)
+                for i, script_path in enumerate(raw_scripts, 1):
+                    filename = os.path.basename(script_path)
+                    print(f"{i}. {filename}")
+                
+                print("-" * 60)
+                selection = input(f"\nSelect raw script (1-{len(raw_scripts)}): ").strip()
+                
+                if selection.isdigit() and 1 <= int(selection) <= len(raw_scripts):
+                    selected_script = raw_scripts[int(selection) - 1]
+                    
+                    # Copy selected raw script to script.txt for processing
+                    import shutil
+                    shutil.copy(selected_script, "script.txt")
+                    print(f"\n✅ Loaded: {os.path.basename(selected_script)}")
+                    
+                    print("\n" + "="*60)
+                    print("Now personalizing script...")
+                    print("="*60)
+                    
+                    # Personalize the script
+                    repurpose()
+                else:
+                    print("Invalid selection")
+            else:
+                print(f"\n⚠️  No raw scripts found in {raw_scripts_dir}/ folder")
+                print("💡 Tip: Process a video first (option 1) to create raw scripts")
+        else:
+            print(f"\n⚠️  {raw_scripts_dir}/ folder not found")
+            print("💡 Tip: Process a video first (option 1) to create the folder")
+    
     else:
-        # Direct script personalization
+        # Direct script personalization (option 3 or any other input)
         repurpose()
 
     # Optional: quick regenerate loop

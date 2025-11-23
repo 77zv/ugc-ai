@@ -12,6 +12,7 @@ chroma_db
 
 # Video processing outputs
 screenshots/
+raw_scripts/
 video_analysis.json
 
 # Video files (keep videos/ folder structure but ignore contents)
