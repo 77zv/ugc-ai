@@ -17,6 +17,52 @@ llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
 
 # === Prompt Templates ===
 
+STRUCTURE_PROMPT = PromptTemplate(
+    input_variables=["script"],
+    template=(
+        "You are analyzing a UGC (User Generated Content) script.\n\n"
+        "Your job is to break this script into structured sections following the UGC format:\n\n"
+        "1. 😰 RELATABLE PAIN HOOK (1 sentence)\n"
+        "   - What specific pain point or problem does this address?\n"
+        "   - Should grab attention and make viewer feel understood\n\n"
+        "2. 🏠 BACKSTORY (2-4 short sentences)\n"
+        "   - Personal story about the struggle\n"
+        "   - Could be about: school, work, relationships, health, career, etc.\n"
+        "   - Makes the creator relatable and authentic\n\n"
+        "3. 💥 BREAKING POINT (1-2 sentences)\n"
+        "   - The moment they decided to change\n"
+        "   - What triggered the transformation\n"
+        "   - The 'enough is enough' moment\n\n"
+        "4. 📦 TAKEAWAY (2-3 sentences)\n"
+        "   - The solution or lesson learned\n"
+        "   - What changed after using the product/method\n"
+        "   - The transformation or benefit\n\n"
+        "5. 🤝 SOFT CTA (optional, 1 sentence)\n"
+        "   - Gentle call to action\n"
+        "   - Not pushy or salesy\n\n"
+        "Original Script:\n"
+        "{script}\n\n"
+        "Analyze the script and identify each section. Return a JSON object with this structure:\n"
+        "{{\n"
+        "  \"sections\": [\n"
+        "    {{\n"
+        "      \"type\": \"hook\",\n"
+        "      \"description\": \"Brief description of what this section is about\",\n"
+        "      \"content\": \"The actual text from the script\"\n"
+        "    }},\n"
+        "    {{\n"
+        "      \"type\": \"backstory\",\n"
+        "      \"description\": \"e.g., 'Backstory about struggling in school'\",\n"
+        "      \"content\": \"The actual text from the script\"\n"
+        "    }},\n"
+        "    // ... more sections\n"
+        "  ]\n"
+        "}}\n\n"
+        "Valid section types: hook, backstory, breaking_point, takeaway, cta, transition\n"
+        "Return ONLY valid JSON, no other text.\n"
+    ),
+)
+
 CLASSIFY_PROMPT = PromptTemplate(
     input_variables=["chunk"],
     template=(
@@ -100,6 +146,70 @@ def load_db():
 
 
 # === Script Processing Functions ===
+
+def structure_script(script: str) -> list:
+    """
+    Use AI to analyze and break down the script into structured sections.
+    
+    Args:
+        script: Raw script text
+        
+    Returns:
+        List of section dictionaries with type, description, and content
+    """
+    print("\n🔍 Analyzing script structure...")
+    
+    try:
+        resp = llm.invoke(STRUCTURE_PROMPT.format(script=script))
+        text = resp.content.strip()
+        
+        # Remove markdown code blocks if present
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+        
+        data = json.loads(text)
+        sections = data.get("sections", [])
+        
+        if not sections:
+            print("⚠️  Could not identify sections, will process as one chunk")
+            return [{
+                "type": "full_script",
+                "description": "Full script",
+                "content": script
+            }]
+        
+        print(f"✅ Identified {len(sections)} section(s):\n")
+        for i, section in enumerate(sections, 1):
+            section_type = section.get("type", "unknown")
+            description = section.get("description", "")
+            content_preview = section.get("content", "")[:60]
+            print(f"   {i}. [{section_type.upper()}] {description}")
+            print(f"      Preview: {content_preview}...")
+        
+        return sections
+        
+    except json.JSONDecodeError as e:
+        print(f"⚠️  JSON parsing error: {e}")
+        print("⚠️  Falling back to simple processing")
+        return [{
+            "type": "full_script",
+            "description": "Full script",
+            "content": script
+        }]
+    except Exception as e:
+        print(f"⚠️  Error structuring script: {e}")
+        print("⚠️  Falling back to simple processing")
+        return [{
+            "type": "full_script",
+            "description": "Full script",
+            "content": script
+        }]
+
 
 def analyze_chunk(chunk: str) -> dict:
     """
@@ -217,29 +327,65 @@ def repurpose_script(input_file: str = "script.txt", output_file: str = "output.
     if extra_instructions and extra_instructions.strip():
         print(f"\n📝 Extra Instructions: {extra_instructions.strip()}\n")
 
-    # Smaller chunks for IG-style lines (often line-based)
-    splitter = CharacterTextSplitter(chunk_size=160, chunk_overlap=0, separator="\n")
-    chunks = [c.strip() for c in splitter.split_text(script) if c.strip()]
+    # Step 1: Use AI to structure the script into sections
+    sections = structure_script(script)
+    
+    print(f"\n{'='*60}")
+    print("REPURPOSING SCRIPT BY SECTION")
+    print(f"{'='*60}\n")
 
-    print(f"\nRepurposing {len(chunks)} chunk(s)...\n")
+    all_results = []
+    
+    # Process each section
+    for section_idx, section in enumerate(sections, 1):
+        section_type = section.get("type", "unknown")
+        section_description = section.get("description", "")
+        section_content = section.get("content", "").strip()
+        
+        if not section_content:
+            continue
+        
+        print(f"\n{'─'*60}")
+        print(f"SECTION {section_idx}: [{section_type.upper()}]")
+        if section_description:
+            print(f"Description: {section_description}")
+        print(f"{'─'*60}")
+        
+        # For longer sections, split into sentences
+        # Otherwise, process as one chunk
+        if len(section_content) > 300:
+            # Split by sentences or newlines
+            splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=20, separator="\n")
+            chunks = [c.strip() for c in splitter.split_text(section_content) if c.strip()]
+        else:
+            chunks = [section_content]
+        
+        section_results = []
+        
+        for chunk_idx, chunk in enumerate(chunks, 1):
+            print(f"\n  Chunk {chunk_idx}/{len(chunks)}:")
+            print(f"  IN:  {chunk[:100]}{'...' if len(chunk) > 100 else ''}")
+            
+            adapted = rewrite_chunk(chunk, db, extra_instructions)
+            
+            section_results.append(adapted)
+            print(f"  OUT: {adapted}")
+        
+        # Join results for this section
+        section_output = " ".join(section_results)
+        all_results.append(section_output)
+        
+        print(f"\n✅ Section {section_idx} complete")
 
-    results = []
-    for i, chunk in enumerate(chunks):
-        print(f"Chunk {i+1}:")
-        print(f"   IN:  {chunk}")
-
-        adapted = rewrite_chunk(chunk, db, extra_instructions)
-
-        results.append(adapted)
-        print(f"   OUT: {adapted}\n")
-
-    full_output = "\n".join(results)
+    # Join all sections with double newlines for readability
+    full_output = "\n\n".join(all_results)
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(full_output)
 
-    print(f"Full repurposed script saved to {output_file}")
-    print("\n" + "=" * 50)
+    print(f"\n{'='*60}")
+    print(f"✅ FULL REPURPOSED SCRIPT SAVED TO: {output_file}")
+    print(f"{'='*60}\n")
     print(full_output)
-    print("=" * 50)
+    print(f"\n{'='*60}")
 
