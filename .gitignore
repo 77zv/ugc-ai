@@ -9,3 +9,15 @@ __pycache__/
 chroma_db
 
 *.txt
+
+# Video processing outputs
+screenshots/
+video_analysis.json
+
+# Video files (keep videos/ folder structure but ignore contents)
+videos/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm

@@ -226,7 +226,72 @@ if __name__ == "__main__":
     else:
         print(f"Personality DB found at {DB_PATH}/")
 
-    repurpose()
+    # Check if user wants to process a video first
+    print("\n" + "="*60)
+    print("UGC AI SCRIPT PERSONALIZER")
+    print("="*60)
+    print("\nOptions:")
+    print("1. Process video")
+    print("2. Personalize existing script.txt")
+    
+    choice = input("\nEnter choice (1 or 2): ").strip()
+    
+    if choice == "1":
+        # Check for videos folder
+        videos_folder = "videos"
+        if os.path.exists(videos_folder):
+            # Get all video files
+            import glob
+            video_extensions = ['*.mp4', '*.mov', '*.avi', '*.mkv', '*.webm']
+            video_files = []
+            for ext in video_extensions:
+                pattern = os.path.join(videos_folder, ext)
+                video_files.extend(glob.glob(pattern))
+            
+            if video_files:
+                print(f"\n📹 Found {len(video_files)} video(s) in videos/ folder:")
+                print("-" * 60)
+                for i, video in enumerate(video_files, 1):
+                    filename = os.path.basename(video)
+                    print(f"{i}. {filename}")
+                
+                print("-" * 60)
+                selection = input(f"\nSelect video (1-{len(video_files)}) or enter custom path: ").strip()
+                
+                # Check if it's a number selection
+                if selection.isdigit() and 1 <= int(selection) <= len(video_files):
+                    video_path = video_files[int(selection) - 1]
+                else:
+                    # Custom path
+                    video_path = selection
+            else:
+                print(f"\n⚠️  No videos found in {videos_folder}/ folder")
+                video_path = input("Enter path to video file: ").strip()
+        else:
+            print(f"\n💡 Tip: Create a 'videos/' folder to see video list")
+            video_path = input("Enter path to video file: ").strip()
+        
+        if os.path.exists(video_path):
+            # Import video processor
+            from video_processor import process_video, scenes_to_script
+            
+            # Process video
+            scenes = process_video(video_path)
+            
+            # Convert to script format
+            scenes_to_script(scenes, "script.txt")
+            
+            print("\n" + "="*60)
+            print("Video processed! Now personalizing script...")
+            print("="*60)
+            
+            # Now personalize the generated script
+            repurpose()
+        else:
+            print(f"Error: Video file not found: {video_path}")
+    else:
+        # Direct script personalization
+        repurpose()
 
     # Optional: quick regenerate loop
     while input("\nRegenerate? (y/n): ").strip().lower() == "y":
