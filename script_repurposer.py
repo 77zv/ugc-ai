@@ -39,7 +39,7 @@ CLASSIFY_PROMPT = PromptTemplate(
 )
 
 REWRITE_PROMPT = PromptTemplate(
-    input_variables=["chunk", "context", "rhetorical_role"],
+    input_variables=["chunk", "context", "rhetorical_role", "extra_instructions"],
     template=(
         "You are Antony.\n"
         "You are rewriting one line from a reference script so it is 100% about YOU, "
@@ -57,7 +57,8 @@ REWRITE_PROMPT = PromptTemplate(
         "but mapped to your real journey (e.g. social media, online communities, building apps).\n"
         "- Use your tone: fast, direct, and don't use words like \"yo\", \"fr\", \"deadass\", etc. No fluff.\n"
         "- 1–2 sentences max.\n"
-        "- Output ONLY the rewritten line. No explanations.\n"
+        "- Output ONLY the rewritten line. No explanations.\n\n"
+        "{extra_instructions}"
     ),
 )
 
@@ -154,12 +155,17 @@ def retrieve_context(db, retrieval_query: str, top_k: int = 4) -> str:
     return " | ".join(unique[:top_k])
 
 
-def rewrite_chunk(chunk: str, db) -> str:
+def rewrite_chunk(chunk: str, db, extra_instructions: str = "") -> str:
     """
     Full pipeline for a single chunk:
     1. Classify its role & desired retrieval target.
     2. Retrieve relevant personal context.
     3. Rewrite grounded in that context.
+    
+    Args:
+        chunk: Text chunk to rewrite
+        db: Personality database
+        extra_instructions: Optional extra instructions for rewriting
     """
     analysis = analyze_chunk(chunk)
     role = analysis["rhetorical_role"]
@@ -167,25 +173,32 @@ def rewrite_chunk(chunk: str, db) -> str:
 
     context = retrieve_context(db, retrieval_query)
 
+    # Format extra instructions if provided
+    extra_instructions_text = ""
+    if extra_instructions and extra_instructions.strip():
+        extra_instructions_text = f"Additional Instructions:\n{extra_instructions.strip()}"
+
     # If nothing retrieved, we still adapt style but avoid fake specifics.
     adapted = llm.invoke(
         REWRITE_PROMPT.format(
             chunk=chunk,
             context=context if context else "(no specific facts; stay vague but honest)",
             rhetorical_role=role,
+            extra_instructions=extra_instructions_text,
         )
     ).content.strip()
 
     return adapted
 
 
-def repurpose_script(input_file: str = "script.txt", output_file: str = "output.txt"):
+def repurpose_script(input_file: str = "script.txt", output_file: str = "output.txt", extra_instructions: str = ""):
     """
     Main function to repurpose a script by personalizing it.
     
     Args:
         input_file: Path to input script file
         output_file: Path to save personalized output
+        extra_instructions: Optional extra instructions for customizing the rewrite
     """
     print(f"\nLoading {input_file}...")
     if not os.path.exists(input_file):
@@ -200,6 +213,10 @@ def repurpose_script(input_file: str = "script.txt", output_file: str = "output.
 
     db = load_db()
 
+    # Display extra instructions if provided
+    if extra_instructions and extra_instructions.strip():
+        print(f"\n📝 Extra Instructions: {extra_instructions.strip()}\n")
+
     # Smaller chunks for IG-style lines (often line-based)
     splitter = CharacterTextSplitter(chunk_size=160, chunk_overlap=0, separator="\n")
     chunks = [c.strip() for c in splitter.split_text(script) if c.strip()]
@@ -211,7 +228,7 @@ def repurpose_script(input_file: str = "script.txt", output_file: str = "output.
         print(f"Chunk {i+1}:")
         print(f"   IN:  {chunk}")
 
-        adapted = rewrite_chunk(chunk, db)
+        adapted = rewrite_chunk(chunk, db, extra_instructions)
 
         results.append(adapted)
         print(f"   OUT: {adapted}\n")

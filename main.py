@@ -10,6 +10,45 @@ from video_processor import process_video, scenes_to_script, transcribe_only
 # === Load API Key ===
 load_dotenv()
 
+# === Helper Functions ===
+
+def get_extra_instructions() -> str:
+    """
+    Prompt user for optional extra instructions for script repurposing.
+    
+    Returns:
+        Extra instructions string (empty if none provided)
+    """
+    print("\n" + "-"*60)
+    print("📝 OPTIONAL: Add extra instructions for repurposing")
+    print("-"*60)
+    print("Examples:")
+    print("  - 'Make it more casual and friendly'")
+    print("  - 'Focus on emphasizing the technical aspects'")
+    print("  - 'Use shorter sentences'")
+    print("  - 'Add more urgency to the CTA'")
+    print("-"*60)
+    
+    response = input("\nAdd extra instructions? (y/n): ").strip().lower()
+    
+    if response == 'y':
+        print("\nEnter your instructions (press Enter twice when done):")
+        print("-"*60)
+        lines = []
+        while True:
+            line = input()
+            if line == "" and len(lines) > 0:
+                break
+            if line:
+                lines.append(line)
+        
+        instructions = "\n".join(lines).strip()
+        if instructions:
+            print(f"\n✅ Instructions added: {instructions[:100]}{'...' if len(instructions) > 100 else ''}")
+            return instructions
+    
+        return ""
+
 # === MAIN ===
 
 if __name__ == "__main__":
@@ -90,8 +129,11 @@ if __name__ == "__main__":
             print("Video processed! Now personalizing script...")
             print("="*60)
             
+            # Get optional extra instructions
+            extra_instructions = get_extra_instructions()
+            
             # Personalize the generated script
-            repurpose_script()
+            repurpose_script(extra_instructions=extra_instructions)
         else:
             print(f"Error: Video file not found: {video_path}")
     
@@ -151,8 +193,11 @@ if __name__ == "__main__":
             print("Transcription complete! Now personalizing script...")
             print("="*60)
             
+            # Get optional extra instructions
+            extra_instructions = get_extra_instructions()
+            
             # Personalize the generated script
-            repurpose_script()
+            repurpose_script(extra_instructions=extra_instructions)
         else:
             print(f"Error: Video file not found: {video_path}")
     
@@ -184,8 +229,11 @@ if __name__ == "__main__":
                     print("Now personalizing script...")
                     print("="*60)
                     
+                    # Get optional extra instructions
+                    extra_instructions = get_extra_instructions()
+                    
                     # Personalize the script
-                    repurpose_script()
+                    repurpose_script(extra_instructions=extra_instructions)
                 else:
                     print("Invalid selection")
             else:
@@ -197,8 +245,10 @@ if __name__ == "__main__":
     
     else:
         # === Option 4: Direct Script Personalization ===
-        repurpose_script()
+        extra_instructions = get_extra_instructions()
+        repurpose_script(extra_instructions=extra_instructions)
 
     # Optional: quick regenerate loop
     while input("\nRegenerate? (y/n): ").strip().lower() == "y":
-        repurpose_script()
+        extra_instructions = get_extra_instructions()
+        repurpose_script(extra_instructions=extra_instructions)
