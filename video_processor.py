@@ -342,6 +342,55 @@ def process_video(video_path: str, output_json: str = "video_analysis.json") -> 
         print("  4. Try with a smaller/shorter video first")
         raise
 
+def transcribe_only(video_path: str, output_file: str = "script.txt") -> str:
+    """
+    Quick transcription without scene detection or visual analysis.
+    Just extract the audio and return the transcript.
+    
+    Args:
+        video_path: Path to video file
+        output_file: Where to save the transcript
+    
+    Returns:
+        Transcribed text
+    """
+    # Validate video file
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"Video file not found: {video_path}")
+    
+    print(f"\n{'='*60}")
+    print(f"🎙️  TRANSCRIBING VIDEO: {video_path}")
+    print(f"{'='*60}")
+    
+    try:
+        # Transcribe audio
+        transcript = transcribe_audio(video_path)
+        
+        # Extract just the text
+        if hasattr(transcript, 'text'):
+            transcript_text = transcript.text.strip()
+        else:
+            transcript_text = str(transcript).strip()
+        
+        # Save to file
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(transcript_text)
+        
+        print(f"\n✅ Transcript saved to {output_file}")
+        print(f"{'='*60}\n")
+        
+        return transcript_text
+        
+    except Exception as e:
+        print(f"\n❌ Transcription failed: {e}")
+        print("\n💡 Troubleshooting:")
+        print("  1. Ensure video file is valid and not corrupted")
+        print("  2. Check your OpenAI API key in .env")
+        print("  3. Verify you have sufficient API credits")
+        print("  4. Check file size (Whisper has 25MB limit)")
+        raise
+
+
 def scenes_to_script(scenes: List[Dict], output_file: str = "script.txt"):
     """
     Convert scene analysis to a simple script format for repurposing.
