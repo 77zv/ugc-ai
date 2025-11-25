@@ -4,7 +4,7 @@ import shutil
 from dotenv import load_dotenv
 
 # Import script processing functions
-from script_repurposer import build_personality_db, repurpose_script, analyze_script_only, DB_PATH
+from script_repurposer import build_personality_db, repurpose_script, analyze_script_only, repurpose_from_analyzed, DB_PATH
 from video_processor import process_video, scenes_to_script, transcribe_only
 
 # === Load API Key ===
@@ -67,8 +67,9 @@ if __name__ == "__main__":
     print("2. Quick transcribe video (transcription only, no scenes/screenshots)")
     print("3. Personalize raw script (select from raw_scripts/ folder)")
     print("4. Analyze raw script structure (no repurposing, saves to analyzed_scripts/)")
+    print("5. Repurpose analyzed script (select from analyzed_scripts/ folder)")
     
-    choice = input("\nEnter choice (1-4): ").strip()
+    choice = input("\nEnter choice (1-5): ").strip()
     
     if choice == "1":
         # === Option 1: Full Video Processing (with scenes & screenshots) ===
@@ -279,10 +280,58 @@ if __name__ == "__main__":
             print(f"\n⚠️  {raw_scripts_dir}/ folder not found")
             print("💡 Tip: Process a video first (option 1 or 2) to create the folder")
     
+    elif choice == "5":
+        # === Option 5: Repurpose Analyzed Script ===
+        analyzed_scripts_dir = "analyzed_scripts"
+        selected_analyzed_script = None
+        
+        if os.path.exists(analyzed_scripts_dir):
+            # Get all JSON files (analyzed scripts)
+            analyzed_scripts = glob.glob(os.path.join(analyzed_scripts_dir, "*.json"))
+            
+            if analyzed_scripts:
+                print(f"\n📝 Found {len(analyzed_scripts)} analyzed script(s):")
+                print("-" * 60)
+                for i, script_path in enumerate(analyzed_scripts, 1):
+                    filename = os.path.basename(script_path)
+                    print(f"{i}. {filename}")
+                
+                print("-" * 60)
+                selection = input(f"\nSelect analyzed script to repurpose (1-{len(analyzed_scripts)}): ").strip()
+                
+                if selection.isdigit() and 1 <= int(selection) <= len(analyzed_scripts):
+                    selected_analyzed_script = analyzed_scripts[int(selection) - 1]
+                    
+                    print(f"\n✅ Selected: {os.path.basename(selected_analyzed_script)}")
+                    
+                    # Repurpose loop for option 5
+                    while True:
+                        print("\n" + "="*60)
+                        print("Repurposing analyzed script...")
+                        print("="*60)
+                        
+                        # Get optional extra instructions
+                        extra_instructions = get_extra_instructions()
+                        
+                        # Repurpose the analyzed script
+                        repurpose_from_analyzed(selected_analyzed_script, extra_instructions=extra_instructions)
+                        
+                        # Ask if user wants to regenerate
+                        if input("\nRegenerate? (y/n): ").strip().lower() != "y":
+                            break
+                else:
+                    print("Invalid selection")
+            else:
+                print(f"\n⚠️  No analyzed scripts found in {analyzed_scripts_dir}/ folder")
+                print("💡 Tip: Analyze a script first (option 4) to create analyzed scripts")
+        else:
+            print(f"\n⚠️  {analyzed_scripts_dir}/ folder not found")
+            print("💡 Tip: Analyze a script first (option 4) to create the folder")
+    
     else:
-        print("Invalid choice. Please select 1, 2, 3, or 4.")
+        print("Invalid choice. Please select 1, 2, 3, 4, or 5.")
 
-    # Optional: quick regenerate loop (only for repurposing options)
+    # Optional: quick regenerate loop (only for repurposing options 1-3)
     if choice in ["1", "2", "3"]:
         while input("\nRegenerate? (y/n): ").strip().lower() == "y":
             extra_instructions = get_extra_instructions()

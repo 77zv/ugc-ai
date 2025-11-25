@@ -474,3 +474,115 @@ def analyze_script_only(input_file: str, output_dir: str = "analyzed_scripts") -
     
     return txt_output_path
 
+
+def repurpose_from_analyzed(analyzed_json_path: str, output_dir: str = "repurposed_scripts", extra_instructions: str = "") -> str:
+    """
+    Repurpose a script from an analyzed JSON file.
+    Uses the structured sections from the analysis.
+    
+    Args:
+        analyzed_json_path: Path to the analyzed JSON file
+        output_dir: Directory to save repurposed scripts
+        extra_instructions: Optional extra instructions for customizing the rewrite
+        
+    Returns:
+        Path to the saved repurposed script
+    """
+    import os
+    from datetime import datetime
+    
+    print(f"\n📖 Loading analyzed script: {analyzed_json_path}...")
+    if not os.path.exists(analyzed_json_path):
+        raise FileNotFoundError(f"Analyzed script not found: {analyzed_json_path}")
+    
+    # Load the analyzed JSON
+    with open(analyzed_json_path, "r", encoding="utf-8") as f:
+        analysis_data = json.load(f)
+    
+    sections = analysis_data.get("sections", [])
+    if not sections:
+        raise ValueError("No sections found in analyzed script")
+    
+    original_file = analysis_data.get("original_file", "unknown")
+    print(f"✅ Loaded {len(sections)} section(s) from analysis")
+    
+    db = load_db()
+    
+    # Display extra instructions if provided
+    if extra_instructions and extra_instructions.strip():
+        print(f"\n📝 Extra Instructions: {extra_instructions.strip()}\n")
+    
+    print(f"\n{'='*60}")
+    print("REPURPOSING SCRIPT BY SECTION")
+    print(f"{'='*60}\n")
+    
+    all_results = []
+    
+    # Process each section
+    for section_idx, section in enumerate(sections, 1):
+        section_type = section.get("type", "unknown")
+        section_description = section.get("description", "")
+        section_content = section.get("content", "").strip()
+        
+        if not section_content:
+            continue
+        
+        print(f"\n{'─'*60}")
+        print(f"SECTION {section_idx}: [{section_type.upper()}]")
+        if section_description:
+            print(f"Description: {section_description}")
+        print(f"{'─'*60}")
+        
+        # For longer sections, split into sentences
+        # Otherwise, process as one chunk
+        if len(section_content) > 300:
+            # Split by sentences or newlines
+            splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=20, separator="\n")
+            chunks = [c.strip() for c in splitter.split_text(section_content) if c.strip()]
+        else:
+            chunks = [section_content]
+        
+        section_results = []
+        
+        for chunk_idx, chunk in enumerate(chunks, 1):
+            print(f"\n  Chunk {chunk_idx}/{len(chunks)}:")
+            print(f"  IN:  {chunk[:100]}{'...' if len(chunk) > 100 else ''}")
+            
+            adapted = rewrite_chunk(chunk, db, extra_instructions)
+            
+            section_results.append(adapted)
+            print(f"  OUT: {adapted}")
+        
+        # Join results for this section
+        section_output = " ".join(section_results)
+        all_results.append(section_output)
+        
+        print(f"\n✅ Section {section_idx} complete")
+    
+    # Join all sections with double newlines for readability
+    full_output = "\n\n".join(all_results)
+    
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Generate output filename
+    base_name = os.path.splitext(os.path.basename(analyzed_json_path))[0]
+    # Remove _analyzed_* suffix if present
+    if "_analyzed_" in base_name:
+        base_name = base_name.split("_analyzed_")[0]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_filename = f"{base_name}_repurposed_{timestamp}.txt"
+    output_path = os.path.join(output_dir, output_filename)
+    
+    # Save repurposed script
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(full_output)
+    
+    print(f"\n{'='*60}")
+    print(f"✅ REPURPOSED SCRIPT SAVED TO: {output_path}")
+    print(f"{'='*60}\n")
+    print(full_output)
+    print(f"\n{'='*60}")
+    
+    return output_path
+
